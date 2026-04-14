@@ -54,20 +54,20 @@ export default function CreateRequestPage() {
           <form onSubmit={handleSubmit} className="space-y-4">
             <div>
               <Label>Title</Label>
-              <Input value={title} onChange={(e) => setTitle(e.target.value)} placeholder="e.g. JavaScript help for Spanish lessons" required />
+              <Input value={title} onChange={(e) => setTitle(e.target.value)} placeholder="e.g. JavaScript help for Spanish lessons" required disabled={submitting} />
             </div>
             <div>
               <Label>Description</Label>
-              <Textarea value={description} onChange={(e) => setDescription(e.target.value)} placeholder="Describe what you're looking for and what you can offer..." required />
+              <Textarea value={description} onChange={(e) => setDescription(e.target.value)} placeholder="Describe what you're looking for and what you can offer..." required disabled={submitting} />
             </div>
             <div className="grid sm:grid-cols-2 gap-4">
               <div>
                 <Label>Skill I Need</Label>
-                <Input value={needSkill} onChange={(e) => setNeedSkill(e.target.value)} placeholder="e.g. spanish" required />
+                <Input value={needSkill} onChange={(e) => setNeedSkill(e.target.value)} placeholder="e.g. spanish" required disabled={submitting} />
               </div>
               <div>
                 <Label>Skill I Offer</Label>
-                <Input value={offerSkill} onChange={(e) => setOfferSkill(e.target.value)} placeholder="e.g. javascript" required />
+                <Input value={offerSkill} onChange={(e) => setOfferSkill(e.target.value)} placeholder="e.g. javascript" required disabled={submitting} />
               </div>
             </div>
             <Button type="submit" disabled={submitting} className="w-full">

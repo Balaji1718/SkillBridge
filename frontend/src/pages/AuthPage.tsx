@@ -54,12 +54,12 @@ export default function AuthPage() {
               {!isLogin && (
                 <div className="space-y-2">
                   <Label htmlFor="name">Name</Label>
-                  <Input id="name" value={name} onChange={(e) => setName(e.target.value)} required />
+                  <Input id="name" value={name} onChange={(e) => setName(e.target.value)} required disabled={loading} />
                 </div>
               )}
               <div className="space-y-2">
                 <Label htmlFor="email">Email</Label>
-                <Input id="email" type="email" value={email} onChange={(e) => setEmail(e.target.value)} required />
+                <Input id="email" type="email" value={email} onChange={(e) => setEmail(e.target.value)} required disabled={loading} />
               </div>
               <div className="space-y-2">
                 <Label htmlFor="password">Password</Label>
@@ -70,6 +70,7 @@ export default function AuthPage() {
                   onChange={(e) => setPassword(e.target.value)}
                   required
                   minLength={6}
+                  disabled={loading}
                 />
               </div>
               <Button type="submit" className="w-full" disabled={loading}>
@@ -78,7 +79,7 @@ export default function AuthPage() {
             </form>
             <p className="mt-4 text-center text-sm text-muted-foreground">
               {isLogin ? "Don't have an account?" : "Already have an account?"}{" "}
-              <button className="text-primary font-medium hover:underline" onClick={() => setIsLogin(!isLogin)}>
+              <button className="text-primary font-medium hover:underline" onClick={() => setIsLogin(!isLogin)} disabled={loading}>
                 {isLogin ? "Sign up" : "Sign in"}
               </button>
             </p>
