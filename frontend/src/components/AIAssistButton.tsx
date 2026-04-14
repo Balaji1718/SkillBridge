@@ -3,7 +3,7 @@ import { Sparkles, X, Send } from "lucide-react";
 import { Button } from "@/components/ui/button";
 import { Textarea } from "@/components/ui/textarea";
 import ReactMarkdown from "react-markdown";
-import { sendGroqChat } from "@/lib/groq";
+import { sendGroqChat } from "../../../backend/lib/groq";
 
 interface Message {
   role: "user" | "assistant";

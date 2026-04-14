@@ -1,0 +1,12 @@
+{
+  "name": "@skillbridge/backend",
+  "version": "1.0.0",
+  "type": "module",
+  "description": "SkillBridge backend utilities (Firebase, Groq)",
+  "main": "lib/firebase.ts",
+  "exports": {
+    "./firebase": "./lib/firebase.ts",
+    "./groq": "./lib/groq.ts",
+    "./utils": "./lib/utils.ts"
+  }
+}

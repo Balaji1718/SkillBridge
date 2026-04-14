@@ -1,16 +1,16 @@
 {
-  "name": "@skillbridge/monorepo",
+  "name": "vite_react_shadcn_ts",
   "private": true,
-  "version": "1.0.0",
+  "version": "0.0.0",
   "type": "module",
   "scripts": {
-    "dev": "cd frontend && npm run dev",
-    "build": "cd frontend && npm run build",
-    "build:dev": "cd frontend && npm run build:dev",
-    "lint": "cd frontend && npm run lint",
-    "preview": "cd frontend && npm run preview",
-    "test": "cd frontend && npm run test",
-    "test:watch": "cd frontend && npm run test:watch"
+    "dev": "vite",
+    "build": "vite build",
+    "build:dev": "vite build --mode development",
+    "lint": "eslint .",
+    "preview": "vite preview",
+    "test": "vitest run",
+    "test:watch": "vitest"
   },
   "dependencies": {
     "@hookform/resolvers": "^3.10.0",
