@@ -2,14 +2,13 @@ import { initializeApp } from "firebase/app";
 import { getAuth } from "firebase/auth";
 import { getFirestore } from "firebase/firestore";
 
-// TODO: Replace with your Firebase config
 const firebaseConfig = {
-  apiKey: import.meta.env.VITE_FIREBASE_API_KEY || "",
-  authDomain: import.meta.env.VITE_FIREBASE_AUTH_DOMAIN || "",
-  projectId: import.meta.env.VITE_FIREBASE_PROJECT_ID || "",
-  storageBucket: import.meta.env.VITE_FIREBASE_STORAGE_BUCKET || "",
-  messagingSenderId: import.meta.env.VITE_FIREBASE_MESSAGING_SENDER_ID || "",
-  appId: import.meta.env.VITE_FIREBASE_APP_ID || "",
+  apiKey: "AIzaSyCPhL...",
+  authDomain: "skillbridge-ad868.firebaseapp.com",
+  projectId: "skillbridge-ad868",
+  storageBucket: "skillbridge-ad868.firebasestorage.app",
+  messagingSenderId: "856417948140",
+  appId: "1:856417948140:web:b72ac2f7d8ef11aa8e70c9",
 };
 
 const app = initializeApp(firebaseConfig);
