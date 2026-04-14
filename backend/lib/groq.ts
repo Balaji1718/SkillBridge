@@ -15,10 +15,10 @@ const GROQ_API_URL = "https://api.groq.com/openai/v1/chat/completions";
 const DEFAULT_MODEL = "llama-3.1-8b-instant";
 
 export async function sendGroqChat(messages: GroqMessage[], options: GroqChatOptions = {}) {
-  const apiKey = import.meta.env.VITE_GROQ_API_KEY?.trim();
+  const apiKey = process.env.GROQ_API_KEY;
 
   if (!apiKey) {
-    throw new Error("Groq API key is not configured.");
+    throw new Error("Groq API key not configured. Set GROQ_API_KEY in .env");
   }
 
   const response = await fetch(GROQ_API_URL, {

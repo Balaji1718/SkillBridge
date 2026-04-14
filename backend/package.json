@@ -4,9 +4,20 @@
   "type": "module",
   "description": "SkillBridge backend utilities (Firebase, Groq)",
   "main": "lib/firebase.ts",
+  "scripts": {
+    "dev": "nodemon server.js",
+    "start": "node server.js"
+  },
   "exports": {
     "./firebase": "./lib/firebase.ts",
     "./groq": "./lib/groq.ts",
     "./utils": "./lib/utils.ts"
+  },
+  "dependencies": {
+    "dotenv": "^17.2.3",
+    "express": "^5.2.1"
+  },
+  "devDependencies": {
+    "nodemon": "^3.1.14"
   }
 }

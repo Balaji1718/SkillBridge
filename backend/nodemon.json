@@ -1,0 +1,6 @@
+{
+  "watch": ["server", "routes", "controllers", "services", "src", ".env"],
+  "ext": "js,json,ts",
+  "ignore": ["node_modules"],
+  "exec": "node server.js"
+}
