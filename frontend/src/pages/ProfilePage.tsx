@@ -1,7 +1,7 @@
 import { useState } from "react";
 import { useAuth } from "@/contexts/AuthContext";
 import { doc, updateDoc } from "firebase/firestore";
-import { db } from "../../../backend/lib/firebase";
+import { db } from "@/lib/firebase";
 import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
 import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
@@ -84,16 +84,15 @@ export default function ProfilePage() {
               value={skillInput}
               onChange={(e) => setSkillInput(e.target.value)}
               placeholder="e.g. JavaScript, Guitar, Spanish..."
-              disabled={saving}
               onKeyDown={(e) => e.key === "Enter" && (e.preventDefault(), addSkill("offered"))}
             />
-            <Button variant="outline" onClick={() => addSkill("offered")} disabled={saving}>Add</Button>
+            <Button variant="outline" onClick={() => addSkill("offered")}>Add</Button>
           </div>
           <div className="flex flex-wrap gap-2">
             {offered.map((s) => (
               <Badge key={s} className="gap-1">
                 {s}
-                <button onClick={() => removeSkill("offered", s)} disabled={saving}><X className="h-3 w-3" /></button>
+                <button onClick={() => removeSkill("offered", s)}><X className="h-3 w-3" /></button>
               </Badge>
             ))}
           </div>
@@ -110,16 +109,15 @@ export default function ProfilePage() {
               value={needInput}
               onChange={(e) => setNeedInput(e.target.value)}
               placeholder="e.g. Python, Piano, French..."
-              disabled={saving}
               onKeyDown={(e) => e.key === "Enter" && (e.preventDefault(), addSkill("needed"))}
             />
-            <Button variant="outline" onClick={() => addSkill("needed")} disabled={saving}>Add</Button>
+            <Button variant="outline" onClick={() => addSkill("needed")}>Add</Button>
           </div>
           <div className="flex flex-wrap gap-2">
             {needed.map((s) => (
               <Badge key={s} variant="secondary" className="gap-1">
                 {s}
-                <button onClick={() => removeSkill("needed", s)} disabled={saving}><X className="h-3 w-3" /></button>
+                <button onClick={() => removeSkill("needed", s)}><X className="h-3 w-3" /></button>
               </Badge>
             ))}
           </div>

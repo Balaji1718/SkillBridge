@@ -1,7 +1,7 @@
 import { useState } from "react";
 import { useAuth } from "@/contexts/AuthContext";
 import { collection, addDoc, serverTimestamp } from "firebase/firestore";
-import { db } from "../../../backend/lib/firebase";
+import { db } from "@/lib/firebase";
 import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
 import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
@@ -54,20 +54,20 @@ export default function CreateRequestPage() {
           <form onSubmit={handleSubmit} className="space-y-4">
             <div>
               <Label>Title</Label>
-              <Input value={title} onChange={(e) => setTitle(e.target.value)} placeholder="e.g. JavaScript help for Spanish lessons" required disabled={submitting} />
+              <Input value={title} onChange={(e) => setTitle(e.target.value)} placeholder="e.g. JavaScript help for Spanish lessons" required />
             </div>
             <div>
               <Label>Description</Label>
-              <Textarea value={description} onChange={(e) => setDescription(e.target.value)} placeholder="Describe what you're looking for and what you can offer..." required disabled={submitting} />
+              <Textarea value={description} onChange={(e) => setDescription(e.target.value)} placeholder="Describe what you're looking for and what you can offer..." required />
             </div>
             <div className="grid sm:grid-cols-2 gap-4">
               <div>
                 <Label>Skill I Need</Label>
-                <Input value={needSkill} onChange={(e) => setNeedSkill(e.target.value)} placeholder="e.g. spanish" required disabled={submitting} />
+                <Input value={needSkill} onChange={(e) => setNeedSkill(e.target.value)} placeholder="e.g. spanish" required />
               </div>
               <div>
                 <Label>Skill I Offer</Label>
-                <Input value={offerSkill} onChange={(e) => setOfferSkill(e.target.value)} placeholder="e.g. javascript" required disabled={submitting} />
+                <Input value={offerSkill} onChange={(e) => setOfferSkill(e.target.value)} placeholder="e.g. javascript" required />
               </div>
             </div>
             <Button type="submit" disabled={submitting} className="w-full">

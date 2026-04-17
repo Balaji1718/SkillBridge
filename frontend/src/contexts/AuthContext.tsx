@@ -8,7 +8,7 @@ import {
   updateProfile,
 } from "firebase/auth";
 import { doc, setDoc, getDoc } from "firebase/firestore";
-import { auth, db } from "../../../backend/lib/firebase";
+import { auth, db } from "@/lib/firebase";
 
 interface UserProfile {
   uid: string;

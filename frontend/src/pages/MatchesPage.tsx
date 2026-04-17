@@ -1,13 +1,12 @@
 import { useState, useEffect } from "react";
 import { useAuth } from "@/contexts/AuthContext";
 import { collection, query, where, getDocs, addDoc, serverTimestamp } from "firebase/firestore";
-import { db } from "../../../backend/lib/firebase";
+import { db } from "@/lib/firebase";
 import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
 import { Button } from "@/components/ui/button";
 import { Badge } from "@/components/ui/badge";
 import { useToast } from "@/hooks/use-toast";
 import { Repeat2, Search } from "lucide-react";
-import { Skeleton } from "@/components/ui/skeleton";
 
 interface SkillRequest {
   id: string;
@@ -40,21 +39,15 @@ export default function MatchesPage() {
   }, [user]);
 
   const loadMyRequests = async () => {
-    if (!user) {
-      setMyRequests([]);
-      setLoading(false);
-      return;
-    }
-    setLoading(true);
+    if (!user) return;
     try {
       const q = query(collection(db, "requests"), where("userId", "==", user.uid));
       const snap = await getDocs(q);
       setMyRequests(snap.docs.map((d) => ({ id: d.id, ...d.data() } as SkillRequest)));
     } catch (err) {
       console.error(err);
-    } finally {
-      setLoading(false);
     }
+    setLoading(false);
   };
 
   const findMatches = async () => {
@@ -134,10 +127,7 @@ export default function MatchesPage() {
       <div>
         <h2 className="font-heading text-lg font-semibold mb-3">My Open Requests</h2>
         {loading ? (
-          <div className="space-y-3">
-            <Skeleton className="h-20 w-full rounded-xl" />
-            <Skeleton className="h-20 w-full rounded-xl" />
-          </div>
+          <p className="text-muted-foreground text-sm">Loading...</p>
         ) : myRequests.length === 0 ? (
           <Card>
             <CardContent className="py-6 text-center text-muted-foreground text-sm">
