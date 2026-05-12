@@ -1,12 +1,13 @@
 import { ReactNode, useState } from "react";
 import { Link, useLocation } from "react-router-dom";
-import { LayoutDashboard, User, PlusCircle, Repeat2, LogOut, Menu, X } from "lucide-react";
+import { LayoutDashboard, User, PlusCircle, Repeat2, LogOut, Menu, X, Search } from "lucide-react";
 import { useAuth } from "@/contexts/AuthContext";
 import { Button } from "@/components/ui/button";
 import AIAssistButton from "@/components/AIAssistButton";
 
 const navItems = [
   { to: "/dashboard", label: "Dashboard", icon: LayoutDashboard },
+  { to: "/discover", label: "Discover", icon: Search },
   { to: "/profile", label: "Profile", icon: User },
   { to: "/create-request", label: "New Request", icon: PlusCircle },
   { to: "/matches", label: "Matches", icon: Repeat2 },

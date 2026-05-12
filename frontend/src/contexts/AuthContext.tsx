@@ -10,6 +10,13 @@ import {
 import { doc, setDoc, getDoc } from "firebase/firestore";
 import { auth, db } from "@/lib/firebase";
 
+export type SkillLevel = "beginner" | "intermediate" | "advanced";
+
+export interface SkillWithLevel {
+  skill: string;
+  level: SkillLevel;
+}
+
 interface UserProfile {
   uid: string;
   displayName: string;
@@ -17,6 +24,9 @@ interface UserProfile {
   bio: string;
   skills_offered: string[];
   skills_needed: string[];
+  skills_offered_with_levels?: SkillWithLevel[];
+  skills_needed_with_levels?: SkillWithLevel[];
+  availability_preferences?: string[];
   avatar?: string;
   rating: number;
   exchanges_completed: number;

@@ -9,6 +9,7 @@ import Dashboard from "@/pages/Dashboard";
 import ProfilePage from "@/pages/ProfilePage";
 import CreateRequestPage from "@/pages/CreateRequestPage";
 import MatchesPage from "@/pages/MatchesPage";
+import DiscoverPage from "@/pages/DiscoverPage";
 import NotFound from "@/pages/NotFound";
 
 const queryClient = new QueryClient();
@@ -40,6 +41,7 @@ const App = () => (
             <Route path="/profile" element={<ProtectedRoute><ProfilePage /></ProtectedRoute>} />
             <Route path="/create-request" element={<ProtectedRoute><CreateRequestPage /></ProtectedRoute>} />
             <Route path="/matches" element={<ProtectedRoute><MatchesPage /></ProtectedRoute>} />
+            <Route path="/discover" element={<ProtectedRoute><DiscoverPage /></ProtectedRoute>} />
             <Route path="*" element={<NotFound />} />
           </Routes>
         </AuthProvider>

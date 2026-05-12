@@ -9,6 +9,9 @@ import { Label } from "@/components/ui/label";
 import { Textarea } from "@/components/ui/textarea";
 import { useToast } from "@/hooks/use-toast";
 import { useNavigate } from "react-router-dom";
+import SkillAutocomplete from "@/components/SkillAutocomplete";
+import AIEnhanceDialog from "@/components/AIEnhanceDialog";
+import { Sparkles } from "lucide-react";
 
 export default function CreateRequestPage() {
   const { user } = useAuth();
@@ -19,6 +22,7 @@ export default function CreateRequestPage() {
   const [needSkill, setNeedSkill] = useState("");
   const [offerSkill, setOfferSkill] = useState("");
   const [submitting, setSubmitting] = useState(false);
+  const [requestAiOpen, setRequestAiOpen] = useState(false);
 
   const handleSubmit = async (e: React.FormEvent) => {
     e.preventDefault();
@@ -45,7 +49,19 @@ export default function CreateRequestPage() {
 
   return (
     <div className="max-w-2xl mx-auto animate-fade-in">
-      <h1 className="font-heading text-2xl font-bold mb-6">Create Exchange Request</h1>
+      <div className="mb-6 flex items-center justify-between gap-3">
+        <h1 className="font-heading text-2xl font-bold">Create Exchange Request</h1>
+        <Button
+          type="button"
+          variant="outline"
+          size="sm"
+          onClick={() => setRequestAiOpen(true)}
+          className="shrink-0"
+        >
+          <Sparkles className="mr-2 h-4 w-4" />
+          Improve with AI
+        </Button>
+      </div>
       <Card>
         <CardHeader>
           <CardTitle className="font-heading text-lg">What do you want to exchange?</CardTitle>
@@ -63,11 +79,19 @@ export default function CreateRequestPage() {
             <div className="grid sm:grid-cols-2 gap-4">
               <div>
                 <Label>Skill I Need</Label>
-                <Input value={needSkill} onChange={(e) => setNeedSkill(e.target.value)} placeholder="e.g. spanish" required />
+                <SkillAutocomplete
+                  value={needSkill}
+                  onChange={setNeedSkill}
+                  placeholder="e.g. spanish, javascript, spanish..."
+                />
               </div>
               <div>
                 <Label>Skill I Offer</Label>
-                <Input value={offerSkill} onChange={(e) => setOfferSkill(e.target.value)} placeholder="e.g. javascript" required />
+                <SkillAutocomplete
+                  value={offerSkill}
+                  onChange={setOfferSkill}
+                  placeholder="e.g. javascript, piano, french..."
+                />
               </div>
             </div>
             <Button type="submit" disabled={submitting} className="w-full">
@@ -76,6 +100,18 @@ export default function CreateRequestPage() {
           </form>
         </CardContent>
       </Card>
+
+      <AIEnhanceDialog
+        open={requestAiOpen}
+        onOpenChange={setRequestAiOpen}
+        mode="request"
+        sourceText={[title, description, needSkill, offerSkill].filter(Boolean).join("\n")}
+        title="Improve this request with AI"
+        description="Rewrite your request so it is clearer, more professional, and easier for other people to respond to. The result stays under your control until you apply it."
+        sourceLabel="Current request draft"
+        applyLabel="Apply description"
+        onApply={(value) => setDescription(value)}
+      />
     </div>
   );
 }

@@ -11,11 +11,11 @@ interface Message {
 }
 
 const quickActions = [
-  "Extract skills from my description",
-  "Suggest skills I could offer",
-  "Suggest skills I might need",
-  "Generate a skill exchange idea",
+  "Improve my bio",
   "Rewrite my request professionally",
+  "Make this request clearer",
+  "Improve communication tone",
+  "Generate a concise summary",
 ];
 
 export default function AIAssistButton() {
@@ -40,7 +40,7 @@ export default function AIAssistButton() {
           {
             role: "system",
             content:
-              "You are the SkillBridge AI assistant. Help users exchange skills effectively. Be concise, practical, and friendly. Focus on skill extraction, skill offering suggestions, request rewriting, and exchange ideas.",
+              "You are the SkillBridge AI assistant for SkillBridge. Help users improve profile bios, request wording, communication tone, skill descriptions, and learning goals across programming, design, communication, language learning, business, productivity, creative arts, and academic skills. Be assistive only, concise, practical, and friendly. Never auto-act, never claim to make decisions, and never modify data.",
           },
           ...conversation,
         ],
