@@ -1,0 +1,7 @@
+Hi {{name}},
+
+{{reviewerName}} left you a {{rating}}-star review:
+
+"{{comment}}"
+
+— SkillBridge

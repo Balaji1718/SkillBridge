@@ -1,0 +1,7 @@
+Welcome, {{name}}!
+
+Thanks for joining SkillBridge — your profile is live and you can start connecting with other learners and mentors.
+
+Tip: Complete your profile to improve discoverability.
+
+— The SkillBridge Team

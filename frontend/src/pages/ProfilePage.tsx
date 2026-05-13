@@ -18,6 +18,7 @@ import {
 } from "@/components/ui/select";
 import { useToast } from "@/hooks/use-toast";
 import { Sparkles, X, Globe, Eye, EyeOff } from "lucide-react";
+import { Switch } from "@/components/ui/switch";
 import { getProfileVisibility, ProfileVisibility } from "@/lib/profileVisibility";
 import AchievementBadge from "@/components/AchievementBadge";
 import PersonalAnalytics from "@/components/PersonalAnalytics";
@@ -56,6 +57,9 @@ export default function ProfilePage() {
   );
   const [visibility, setVisibility] = useState<ProfileVisibility>(
     getProfileVisibility(profile) as ProfileVisibility
+  );
+  const [emailNotifications, setEmailNotifications] = useState<boolean>(
+    profile?.email_notifications ?? true
   );
   const [saving, setSaving] = useState(false);
   const [bioAiOpen, setBioAiOpen] = useState(false);
@@ -165,6 +169,7 @@ export default function ProfilePage() {
         skills_needed_with_levels: needed,
         availability_preferences: availability.length > 0 ? availability : deleteField(),
         visibility, // Add visibility field
+        email_notifications: emailNotifications,
       });
       await refreshProfile();
       toast({ title: "Profile updated!" });
@@ -331,6 +336,14 @@ export default function ProfilePage() {
                 ? "Your profile is visible to all users. You'll appear in discovery and recommendations."
                 : "Your profile is hidden from discovery. Only you can see it."}
             </p>
+          </div>
+
+          <div className="mt-4 flex items-center justify-between">
+            <div>
+              <div className="font-medium">Email Notifications</div>
+              <p className="text-xs text-muted-foreground">Receive important emails (matches, reviews, request updates)</p>
+            </div>
+            <Switch checked={emailNotifications} onCheckedChange={(val) => setEmailNotifications(Boolean(val))} />
           </div>
         </CardContent>
       </Card>

@@ -1,0 +1,5 @@
+Hi {{name}},
+
+Your request titled "{{title}}" has been marked as completed. Thank you for using SkillBridge.
+
+— SkillBridge

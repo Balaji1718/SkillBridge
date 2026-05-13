@@ -1,0 +1,5 @@
+Hi {{name}},
+
+{{partnerName}} accepted your match for {{skill}}. Please message them to arrange details.
+
+— SkillBridge
