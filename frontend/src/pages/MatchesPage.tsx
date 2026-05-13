@@ -1,16 +1,28 @@
 import { useState, useEffect } from "react";
 import { useAuth } from "@/contexts/AuthContext";
-import { collection, query, where, getDocs, addDoc, serverTimestamp, doc, getDoc } from "firebase/firestore";
+import { collection, query, where, getDocs, addDoc, serverTimestamp, doc, getDoc, writeBatch, updateDoc } from "firebase/firestore";
 import { db } from "@/lib/firebase";
 import { Link, useNavigate } from "react-router-dom";
 import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
 import { Button } from "@/components/ui/button";
 import { Badge } from "@/components/ui/badge";
 import { Progress } from "@/components/ui/progress";
+import { Input } from "@/components/ui/input";
+import { Label } from "@/components/ui/label";
 import { useToast } from "@/hooks/use-toast";
-import { calculateCompatibilityScore, calculateProfileCompletion, normalizeSkill } from "@/lib/utils";
-import { Repeat2, Search } from "lucide-react";
+import { calculateCompatibilityScore, calculateProfileCompletion, normalizeSkill, partialMatch } from "@/lib/utils";
+import { Repeat2, Search, X } from "lucide-react";
 import RecommendedUsers from "@/components/RecommendedUsers";
+import ReportModal from "@/components/ReportModal";
+import BookmarkButton from "@/components/BookmarkButton";
+import SuggestionModal from "@/components/SuggestionModal";
+import { ListSkeleton, MatchCardSkeleton } from "@/components/LoadingSkeletons";
+import { useDelayedLoading } from "@/hooks/useDelayedLoading";
+import { useDebounce } from "@/hooks/useDebounce";
+import RequestStatusBadge from "@/components/RequestStatusBadge";
+import { getRequestLifecycleStatus, isRequestActive, shouldAutoArchive } from "@/lib/requestStatus";
+import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from "@/components/ui/select";
+import { SKILL_CATEGORY_OPTIONS, getSkillCategory, categoryBadgeClasses } from "@/lib/skillCategories";
 
 interface SkillRequest {
   id: string;
@@ -22,6 +34,10 @@ interface SkillRequest {
   offer_skill: string;
   status: string;
   createdAt?: { seconds?: number; nanoseconds?: number };
+  expiresAt?: { seconds?: number; nanoseconds?: number };
+  archivedAt?: { seconds?: number; nanoseconds?: number };
+  completedAt?: { seconds?: number; nanoseconds?: number };
+  archiveReason?: string;
 }
 
 interface UserProfile {
@@ -47,6 +63,10 @@ interface Match {
   matchedProfileCompletion: number;
   matchedRating: number;
   recentActivityScore: number;
+  createdAt?: { seconds?: number; nanoseconds?: number };
+  completedAt?: { seconds?: number; nanoseconds?: number };
+  userAName?: string;
+  userBName?: string;
 }
 
 export default function MatchesPage() {
@@ -58,6 +78,12 @@ export default function MatchesPage() {
   const [searching, setSearching] = useState(false);
   const [loading, setLoading] = useState(true);
   const [hasSearched, setHasSearched] = useState(false);
+  const [requestFilter, setRequestFilter] = useState<"all" | "active" | "archived" | "completed">("all");
+  const [requestCategoryFilter, setRequestCategoryFilter] = useState<string>("all");
+  const [requestSearchQuery, setRequestSearchQuery] = useState<string>("");
+  const debouncedRequestSearchQuery = useDebounce(requestSearchQuery, 300);
+  const delayedLoading = useDelayedLoading(loading);
+  const delayedSearching = useDelayedLoading(searching);
 
   useEffect(() => {
     loadMyRequests();
@@ -68,12 +94,123 @@ export default function MatchesPage() {
     try {
       const q = query(collection(db, "requests"), where("userId", "==", user.uid));
       const snap = await getDocs(q);
-      setMyRequests(snap.docs.map((d) => ({ id: d.id, ...d.data() } as SkillRequest)));
+
+      const requests = snap.docs.map((d) => ({ id: d.id, ...d.data() } as SkillRequest));
+      const expiredRequestIds = requests.filter((request) => shouldAutoArchive(request)).map((request) => request.id);
+
+      if (expiredRequestIds.length > 0) {
+        const batch = writeBatch(db);
+        expiredRequestIds.forEach((requestId) => {
+          batch.update(doc(db, "requests", requestId), {
+            status: "archived",
+            archivedAt: serverTimestamp(),
+            archiveReason: "expired",
+          });
+        });
+        await batch.commit();
+      }
+
+      setMyRequests(
+        requests.map((request) =>
+          expiredRequestIds.includes(request.id)
+            ? { ...request, status: "archived", archiveReason: "expired" }
+            : request,
+        ),
+      );
     } catch (err) {
       console.error(err);
     }
     setLoading(false);
   };
+
+  const updateRequestStatus = async (requestId: string, nextStatus: "archived" | "completed") => {
+    try {
+      await updateDoc(doc(db, "requests", requestId), {
+        status: nextStatus,
+        ...(nextStatus === "completed"
+          ? { completedAt: serverTimestamp() }
+          : { archivedAt: serverTimestamp(), archiveReason: "manual" }),
+      });
+
+      if (nextStatus === "completed" && user) {
+        const matchDocs = new Map<string, { id: string }>();
+        const [userAMatches, userBMatches] = await Promise.all([
+          getDocs(query(collection(db, "matches"), where("requestA", "==", requestId))),
+          getDocs(query(collection(db, "matches"), where("requestB", "==", requestId))),
+        ]);
+
+        [...userAMatches.docs, ...userBMatches.docs].forEach((matchDoc) => {
+          matchDocs.set(matchDoc.id, { id: matchDoc.id });
+        });
+
+        if (matchDocs.size > 0) {
+          const batch = writeBatch(db);
+          matchDocs.forEach((matchDoc) => {
+            batch.update(doc(db, "matches", matchDoc.id), {
+              status: "completed",
+              completedAt: serverTimestamp(),
+              completedBy: user.uid,
+            });
+          });
+          await batch.commit();
+        }
+      }
+
+      setMyRequests((prev) =>
+        prev.map((request) =>
+          request.id === requestId
+            ? {
+                ...request,
+                status: nextStatus,
+                ...(nextStatus === "completed" ? { completedAt: { seconds: Math.floor(Date.now() / 1000) } } : { archivedAt: { seconds: Math.floor(Date.now() / 1000) }, archiveReason: "manual" }),
+              }
+            : request,
+        ),
+      );
+      toast({
+        title: nextStatus === "completed" ? "Marked completed" : "Archived request",
+        description: "The request is preserved and moved out of active matching.",
+      });
+    } catch (err: any) {
+      toast({ title: "Error", description: err.message, variant: "destructive" });
+    }
+  };
+
+  const activeRequests = myRequests.filter((request) => isRequestActive(request));
+  const archivedRequests = myRequests.filter((request) => getRequestLifecycleStatus(request) === "archived");
+  const completedRequests = myRequests.filter((request) => getRequestLifecycleStatus(request) === "completed");
+
+  const visibleActiveRequests =
+    requestFilter === "all" || requestFilter === "active" ? activeRequests : [];
+  const visibleArchivedRequests =
+    requestFilter === "all" || requestFilter === "archived" ? archivedRequests : [];
+  const visibleCompletedRequests =
+    requestFilter === "all" || requestFilter === "completed" ? completedRequests : [];
+
+  const filterRequestByCategory = (request: SkillRequest) => {
+    if (requestCategoryFilter === "all") return true;
+    const requestCategories = [request.need_skill, request.offer_skill]
+      .map((skill) => getSkillCategory(skill))
+      .filter(Boolean);
+    return requestCategories.includes(requestCategoryFilter as any);
+  };
+
+  const filterRequestBySearch = (request: SkillRequest) => {
+    if (!debouncedRequestSearchQuery) return true;
+    const query = debouncedRequestSearchQuery.toLowerCase();
+    return (
+      partialMatch(request.title, debouncedRequestSearchQuery) ||
+      partialMatch(request.description, debouncedRequestSearchQuery) ||
+      partialMatch(request.need_skill, debouncedRequestSearchQuery) ||
+      partialMatch(request.offer_skill, debouncedRequestSearchQuery)
+    );
+  };
+
+  const hasActiveRequestFilters = requestFilter !== "all" || requestCategoryFilter !== "all" || requestSearchQuery !== "";
+
+  const filteredVisibleActiveRequests = visibleActiveRequests.filter(filterRequestByCategory).filter(filterRequestBySearch);
+  const filteredVisibleArchivedRequests = visibleArchivedRequests.filter(filterRequestByCategory).filter(filterRequestBySearch);
+  const filteredVisibleCompletedRequests = visibleCompletedRequests.filter(filterRequestByCategory).filter(filterRequestBySearch);
 
   const findMatches = async () => {
     if (!user || myRequests.length === 0) {
@@ -130,10 +267,11 @@ export default function MatchesPage() {
       } as SkillRequest));
 
       for (const myReq of myRequests) {
-        if (myReq.status !== "open") continue;
+        if (!isRequestActive(myReq)) continue;
         // Find requests where someone offers what I need AND needs what I offer.
         const matchingRequests = allOpenRequests.filter((otherReq) => {
           if (otherReq.userId === user.uid) return false;
+          if (!isRequestActive(otherReq)) return false;
           return isMatch(myReq.need_skill, otherReq.offer_skill, myReq.offer_skill, otherReq.need_skill);
         });
 
@@ -212,6 +350,8 @@ export default function MatchesPage() {
       await addDoc(collection(db, "matches"), {
         userA: match.requestA.userId,
         userB: match.requestB.userId,
+        userAName: match.requestA.userName,
+        userBName: match.requestB.userName,
         requestA: match.requestA.id,
         requestB: match.requestB.id,
         skillA: match.requestA.offer_skill,
@@ -241,17 +381,70 @@ export default function MatchesPage() {
 
       <div className="flex items-center justify-between">
         <h1 className="font-heading text-2xl font-bold">Matches</h1>
-        <Button onClick={findMatches} disabled={searching} className="gap-2">
+        <Button onClick={findMatches} loading={searching} className="gap-2">
           <Search className="h-4 w-4" />
-          {searching ? "Searching..." : "Find Match"}
+          Find Match
         </Button>
       </div>
 
       {/* My requests */}
       <div>
-        <h2 className="font-heading text-lg font-semibold mb-3">My Open Requests</h2>
-        {loading ? (
-          <p className="text-muted-foreground text-sm">Loading...</p>
+        <h2 className="font-heading text-lg font-semibold mb-3">My Requests</h2>
+
+        {/* Search */}
+        <Card className="mb-3">
+          <CardContent className="pt-4">
+            <div className="flex gap-2">
+              <Input
+                placeholder="Search requests by skill or title..."
+                value={requestSearchQuery}
+                onChange={(e) => setRequestSearchQuery(e.target.value)}
+                className="flex-1"
+                aria-label="Search requests"
+              />
+              {requestSearchQuery && (
+                <Button
+                  variant="ghost"
+                  size="sm"
+                  onClick={() => setRequestSearchQuery("")}
+                  aria-label="Clear search"
+                >
+                  <X className="h-4 w-4" />
+                </Button>
+              )}
+            </div>
+          </CardContent>
+        </Card>
+
+        {/* Filters */}
+        <div className="flex items-center justify-between gap-3 mb-3 flex-wrap">
+          <div className="flex flex-wrap gap-2">
+            {(["all", "active", "archived", "completed"] as const).map((filter) => (
+              <Button
+                key={filter}
+                type="button"
+                size="sm"
+                variant={requestFilter === filter ? "default" : "outline"}
+                onClick={() => setRequestFilter(filter)}
+                className="rounded-full"
+              >
+                {filter.charAt(0).toUpperCase() + filter.slice(1)}
+              </Button>
+            ))}
+          </div>
+          <Select value={requestCategoryFilter} onValueChange={setRequestCategoryFilter}>
+            <SelectTrigger className="w-48">
+              <SelectValue placeholder="Category" />
+            </SelectTrigger>
+            <SelectContent>
+              {SKILL_CATEGORY_OPTIONS.map((option) => (
+                <SelectItem key={option.value} value={option.value}>{option.label}</SelectItem>
+              ))}
+            </SelectContent>
+          </Select>
+        </div>
+        {delayedLoading ? (
+          <ListSkeleton count={2} />
         ) : myRequests.length === 0 ? (
           <Card>
             <CardContent className="py-6 text-center text-muted-foreground text-sm">
@@ -259,18 +452,111 @@ export default function MatchesPage() {
             </CardContent>
           </Card>
         ) : (
-          <div className="space-y-3">
-            {myRequests.map((r) => (
-              <Card key={r.id}>
-                <CardContent className="py-4">
-                  <p className="font-medium">{r.title}</p>
-                  <div className="flex gap-2 mt-2">
-                    <Badge variant="secondary">Need: {r.need_skill}</Badge>
-                    <Badge>Offer: {r.offer_skill}</Badge>
-                  </div>
+          <div className="space-y-5">
+            {filteredVisibleActiveRequests.length > 0 && (
+              <div className="space-y-3">
+                <h3 className="font-heading text-sm font-semibold text-muted-foreground uppercase tracking-wide">Active Requests</h3>
+                <div className="space-y-3">
+                  {filteredVisibleActiveRequests.map((r) => (
+                    <Card key={r.id} className="border-emerald-500/20">
+                      <CardContent className="py-4 space-y-3">
+                        <div className="flex items-start justify-between gap-3">
+                          <div className="space-y-2 min-w-0">
+                            <div className="flex items-center gap-2 flex-wrap">
+                              <p className="font-medium truncate">{r.title}</p>
+                              <RequestStatusBadge request={r} />
+                            </div>
+                            <div className="flex flex-wrap gap-2">
+                              <Badge variant="secondary">Need: {r.need_skill}</Badge>
+                              <Badge>Offer: {r.offer_skill}</Badge>
+                              <Badge variant="outline" className={`rounded-full text-[10px] uppercase tracking-wide ${categoryBadgeClasses(getSkillCategory(r.offer_skill || r.need_skill))}`}>
+                                {getSkillCategory(r.offer_skill || r.need_skill)}
+                              </Badge>
+                            </div>
+                          </div>
+                          <div className="flex flex-col sm:flex-row gap-2 shrink-0">
+                            <div className="flex items-center gap-2">
+                              <Button size="sm" variant="outline" onClick={() => updateRequestStatus(r.id, "archived")}>
+                                Archive
+                              </Button>
+                              <Button size="sm" onClick={() => updateRequestStatus(r.id, "completed")}>
+                                Complete
+                              </Button>
+                              <ReportModal targetType="request" targetId={r.id} />
+                            </div>
+                          </div>
+                        </div>
+                      </CardContent>
+                    </Card>
+                  ))}
+                </div>
+              </div>
+            )}
+
+            {(filteredVisibleArchivedRequests.length > 0 || filteredVisibleCompletedRequests.length > 0) && (
+              <div className="space-y-3">
+                <h3 className="font-heading text-sm font-semibold text-muted-foreground uppercase tracking-wide">Archived Requests</h3>
+                <div className="space-y-3">
+                  {filteredVisibleArchivedRequests.map((r) => (
+                    <Card key={r.id} className="border-amber-500/20 bg-amber-500/5">
+                      <CardContent className="py-4 space-y-3">
+                        <div className="flex items-start justify-between gap-3">
+                          <div className="space-y-2 min-w-0">
+                            <div className="flex items-center gap-2 flex-wrap">
+                              <p className="font-medium truncate">{r.title}</p>
+                              <RequestStatusBadge request={r} />
+                            </div>
+                            <div className="flex flex-wrap gap-2">
+                              <Badge variant="secondary">Need: {r.need_skill}</Badge>
+                              <Badge>Offer: {r.offer_skill}</Badge>
+                              <Badge variant="outline" className={`rounded-full text-[10px] uppercase tracking-wide ${categoryBadgeClasses(getSkillCategory(r.offer_skill || r.need_skill))}`}>
+                                {getSkillCategory(r.offer_skill || r.need_skill)}
+                              </Badge>
+                            </div>
+                          </div>
+                          <div className="text-right text-xs text-muted-foreground">
+                            <p>Archived</p>
+                          </div>
+                        </div>
+                      </CardContent>
+                    </Card>
+                  ))}
+
+                  {filteredVisibleCompletedRequests.map((r) => (
+                    <Card key={r.id} className="border-primary/20 bg-primary/5">
+                      <CardContent className="py-4 space-y-3">
+                        <div className="flex items-start justify-between gap-3">
+                          <div className="space-y-2 min-w-0">
+                            <div className="flex items-center gap-2 flex-wrap">
+                              <p className="font-medium truncate">{r.title}</p>
+                              <RequestStatusBadge request={r} />
+                            </div>
+                            <div className="flex flex-wrap gap-2">
+                              <Badge variant="secondary">Need: {r.need_skill}</Badge>
+                              <Badge>Offer: {r.offer_skill}</Badge>
+                              <Badge variant="outline" className={`rounded-full text-[10px] uppercase tracking-wide ${categoryBadgeClasses(getSkillCategory(r.offer_skill || r.need_skill))}`}>
+                                {getSkillCategory(r.offer_skill || r.need_skill)}
+                              </Badge>
+                            </div>
+                          </div>
+                          <div className="text-right text-xs text-muted-foreground">
+                            <p>Completed</p>
+                          </div>
+                        </div>
+                      </CardContent>
+                    </Card>
+                  ))}
+                </div>
+              </div>
+            )}
+
+            {filteredVisibleActiveRequests.length === 0 && filteredVisibleArchivedRequests.length === 0 && filteredVisibleCompletedRequests.length === 0 && (
+              <Card>
+                <CardContent className="py-6 text-center text-muted-foreground text-sm">
+                  No requests match this filter.
                 </CardContent>
               </Card>
-            ))}
+            )}
           </div>
         )}
       </div>
@@ -285,7 +571,13 @@ export default function MatchesPage() {
         </div>
 
         {matches.length === 0 ? (
-          hasSearched ? (
+          delayedSearching ? (
+            <div className="space-y-3">
+              {Array.from({ length: 3 }).map((_, i) => (
+                <MatchCardSkeleton key={i} />
+              ))}
+            </div>
+          ) : hasSearched ? (
             <Card>
               <CardContent className="py-6 text-center text-muted-foreground text-sm">
                 No compatible suggestions right now. Try different request skills or check back later.
@@ -364,6 +656,22 @@ export default function MatchesPage() {
                     <Button asChild size="sm" variant="ghost">
                       <Link to="/discover">Explore Suggestions</Link>
                     </Button>
+                    <SuggestionModal
+                      type="collaboration"
+                      userName={m.requestB.userName}
+                      mySkill={m.requestA.offer_skill}
+                      theirSkill={m.requestB.offer_skill}
+                      tone="professional"
+                    />
+                    <BookmarkButton
+                      itemId={m.id}
+                      type="match"
+                      title={m.requestB.userName}
+                      category={`${m.requestA.offer_skill} ↔️ ${m.requestB.offer_skill}`}
+                      compatibilityScore={m.compatibilityScore}
+                      size="sm"
+                    />
+                    <ReportModal targetType="user" targetId={m.matchedUser?.uid || m.requestB.userId} />
                   </div>
                 </CardContent>
               </Card>

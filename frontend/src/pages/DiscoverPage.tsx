@@ -8,11 +8,18 @@ import { Input } from "@/components/ui/input";
 import { Label } from "@/components/ui/label";
 import { Badge } from "@/components/ui/badge";
 import { Progress } from "@/components/ui/progress";
+import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from "@/components/ui/select";
 import { useToast } from "@/hooks/use-toast";
 import { normalizeSkill, skillMatches, partialMatch, calculateCompatibilityScore } from "@/lib/utils";
-import { Search, X } from "lucide-react";
+import { Search, X, Filter } from "lucide-react";
 import RecommendedUsers from "@/components/RecommendedUsers";
 import SkillAutocomplete from "@/components/SkillAutocomplete";
+import BookmarkButton from "@/components/BookmarkButton";
+import { UserCardSkeleton } from "@/components/LoadingSkeletons";
+import { useDelayedLoading } from "@/hooks/useDelayedLoading";
+import { useDebounce } from "@/hooks/useDebounce";
+import { SKILL_CATEGORY_OPTIONS, getSkillCategory, categoryBadgeClasses } from "@/lib/skillCategories";
+import { isProfilePublic } from "@/lib/profileVisibility";
 
 interface UserProfile {
   uid: string;
@@ -43,13 +50,18 @@ export default function DiscoverPage() {
   const [allUsers, setAllUsers] = useState<UserProfile[]>([]);
   const [filteredUsers, setFilteredUsers] = useState<UserProfile[]>([]);
   const [loading, setLoading] = useState(true);
+  const delayedLoading = useDelayedLoading(loading);
 
   // Search and filter state
   const [searchQuery, setSearchQuery] = useState("");
   const [skillFilter, setSkillFilter] = useState("");
+  const [categoryFilter, setCategoryFilter] = useState<string>("all");
   const [minRating, setMinRating] = useState(0);
   const [selectedAvailability, setSelectedAvailability] = useState<string[]>([]);
   const [showFilters, setShowFilters] = useState(false);
+
+  // Debounce search query to avoid excessive filtering
+  const debouncedSearchQuery = useDebounce(searchQuery, 300);
 
   useEffect(() => {
     loadUsers();
@@ -57,7 +69,7 @@ export default function DiscoverPage() {
 
   useEffect(() => {
     applyFilters();
-  }, [searchQuery, skillFilter, minRating, selectedAvailability, allUsers]);
+  }, [debouncedSearchQuery, skillFilter, categoryFilter, minRating, selectedAvailability, allUsers]);
 
   const loadUsers = async () => {
     try {
@@ -72,7 +84,8 @@ export default function DiscoverPage() {
             exchanges_completed: data.exchanges_completed || 0,
           };
         })
-        .filter((u) => u.uid !== user?.uid); // exclude current user
+        .filter((u) => u.uid !== user?.uid) // exclude current user
+        .filter((u) => isProfilePublic(u)); // exclude private profiles
       setAllUsers(users);
       setFilteredUsers(users);
     } catch (err) {
@@ -85,10 +98,10 @@ export default function DiscoverPage() {
   const applyFilters = () => {
     let results = allUsers;
 
-    // Search by name or bio
-    if (searchQuery) {
+    // Search by name or bio (using debounced query)
+    if (debouncedSearchQuery) {
       results = results.filter((u) =>
-        partialMatch(u.displayName, searchQuery) || partialMatch(u.bio, searchQuery)
+        partialMatch(u.displayName, debouncedSearchQuery) || partialMatch(u.bio, debouncedSearchQuery)
       );
     }
 
@@ -100,6 +113,18 @@ export default function DiscoverPage() {
           ...(u.skills_offered_with_levels?.map((s) => s.skill) || []),
         ];
         return offeredSkills.some((s) => skillMatches(s, skillFilter));
+      });
+    }
+
+    if (categoryFilter !== "all") {
+      results = results.filter((u) => {
+        const allSkills = [
+          ...(u.skills_offered || []),
+          ...(u.skills_offered_with_levels?.map((s) => s.skill) || []),
+          ...(u.skills_needed || []),
+          ...(u.skills_needed_with_levels?.map((s) => s.skill) || []),
+        ];
+        return allSkills.some((skill) => getSkillCategory(skill) === categoryFilter);
       });
     }
 
@@ -128,11 +153,12 @@ export default function DiscoverPage() {
   const clearFilters = () => {
     setSearchQuery("");
     setSkillFilter("");
+    setCategoryFilter("all");
     setMinRating(0);
     setSelectedAvailability([]);
   };
 
-  const hasActiveFilters = searchQuery || skillFilter || minRating > 0 || selectedAvailability.length > 0;
+  const hasActiveFilters = searchQuery || skillFilter || categoryFilter !== "all" || minRating > 0 || selectedAvailability.length > 0;
 
   return (
     <div className="space-y-6 animate-fade-in">
@@ -145,8 +171,13 @@ export default function DiscoverPage() {
           size="sm"
           onClick={() => setShowFilters(!showFilters)}
         >
-          <Search className="h-4 w-4 mr-2" />
+          <Filter className="h-4 w-4 mr-2" />
           {showFilters ? "Hide" : "Show"} Filters
+          {hasActiveFilters && (
+            <Badge className="ml-2 h-5 w-5 rounded-full p-0 flex items-center justify-center text-xs">
+              {[skillFilter ? 1 : 0, categoryFilter !== "all" ? 1 : 0, minRating > 0 ? 1 : 0, selectedAvailability.length > 0 ? 1 : 0].filter(Boolean).length}
+            </Badge>
+          )}
         </Button>
       </div>
 
@@ -155,16 +186,18 @@ export default function DiscoverPage() {
         <CardContent className="pt-4">
           <div className="flex gap-2">
             <Input
-              placeholder="Search by name..."
+              placeholder="Search by name, bio, or skills..."
               value={searchQuery}
               onChange={(e) => setSearchQuery(e.target.value)}
               className="flex-1"
+              aria-label="Search users"
             />
             {searchQuery && (
               <Button
                 variant="ghost"
                 size="sm"
                 onClick={() => setSearchQuery("")}
+                aria-label="Clear search"
               >
                 <X className="h-4 w-4" />
               </Button>
@@ -172,6 +205,59 @@ export default function DiscoverPage() {
           </div>
         </CardContent>
       </Card>
+
+      {/* Quick Filter Chips */}
+      {hasActiveFilters && (
+        <Card className="bg-muted/50">
+          <CardContent className="pt-4">
+            <div className="space-y-2">
+              <p className="text-xs font-medium text-muted-foreground">Active Filters:</p>
+              <div className="flex flex-wrap gap-2">
+                {skillFilter && (
+                  <Badge
+                    variant="secondary"
+                    className="cursor-pointer hover:bg-secondary/80"
+                    onClick={() => setSkillFilter("")}
+                  >
+                    Skill: {skillFilter}
+                    <X className="ml-1 h-3 w-3" />
+                  </Badge>
+                )}
+                {categoryFilter !== "all" && (
+                  <Badge
+                    variant="secondary"
+                    className="cursor-pointer hover:bg-secondary/80"
+                    onClick={() => setCategoryFilter("all")}
+                  >
+                    Category: {SKILL_CATEGORY_OPTIONS.find(opt => opt.value === categoryFilter)?.label}
+                    <X className="ml-1 h-3 w-3" />
+                  </Badge>
+                )}
+                {minRating > 0 && (
+                  <Badge
+                    variant="secondary"
+                    className="cursor-pointer hover:bg-secondary/80"
+                    onClick={() => setMinRating(0)}
+                  >
+                    Rating: {minRating.toFixed(1)}+ ⭐
+                    <X className="ml-1 h-3 w-3" />
+                  </Badge>
+                )}
+                {selectedAvailability.length > 0 && (
+                  <Badge
+                    variant="secondary"
+                    className="cursor-pointer hover:bg-secondary/80"
+                    onClick={() => setSelectedAvailability([])}
+                  >
+                    {selectedAvailability.length} Availability
+                    <X className="ml-1 h-3 w-3" />
+                  </Badge>
+                )}
+              </div>
+            </div>
+          </CardContent>
+        </Card>
+      )}
 
       {/* Filters */}
       {showFilters && (
@@ -199,6 +285,20 @@ export default function DiscoverPage() {
               <p className="text-xs text-muted-foreground mt-1">
                 Partial matches supported (e.g., "React" finds "React.js")
               </p>
+            </div>
+
+            <div>
+              <Label className="text-sm font-medium">Skill Category</Label>
+              <Select value={categoryFilter} onValueChange={setCategoryFilter}>
+                <SelectTrigger className="mt-2">
+                  <SelectValue placeholder="Choose a category" />
+                </SelectTrigger>
+                <SelectContent>
+                  {SKILL_CATEGORY_OPTIONS.map((option) => (
+                    <SelectItem key={option.value} value={option.value}>{option.label}</SelectItem>
+                  ))}
+                </SelectContent>
+              </Select>
             </div>
 
             {/* Rating Filter */}
@@ -249,12 +349,12 @@ export default function DiscoverPage() {
           {loading ? "Loading..." : `${filteredUsers.length} user${filteredUsers.length !== 1 ? "s" : ""} found`}
         </p>
 
-        {loading ? (
-          <Card>
-            <CardContent className="py-8 text-center text-muted-foreground">
-              Loading users...
-            </CardContent>
-          </Card>
+        {delayedLoading ? (
+          <div className="grid gap-4 md:grid-cols-2">
+            {Array.from({ length: 6 }).map((_, i) => (
+              <UserCardSkeleton key={i} />
+            ))}
+          </div>
         ) : filteredUsers.length === 0 ? (
           <Card>
             <CardContent className="py-8 text-center text-muted-foreground">
@@ -317,6 +417,13 @@ export default function DiscoverPage() {
                             </Badge>
                           ))}
                         </div>
+                        <div className="mt-2 flex flex-wrap gap-2">
+                          {Array.from(new Set(offeredSkills.map((skill) => getSkillCategory(skill)))).slice(0, 3).map((category) => (
+                            <Badge key={`${u.uid}-offered-cat-${category}`} variant="outline" className={`rounded-full text-[10px] uppercase tracking-wide ${categoryBadgeClasses(category)}`}>
+                              {category}
+                            </Badge>
+                          ))}
+                        </div>
                       </div>
                     )}
 
@@ -329,6 +436,13 @@ export default function DiscoverPage() {
                           {neededSkills.map((s, index) => (
                             <Badge key={`${u.uid}-needed-${index}-${normalizeSkill(s) || s}`} variant="secondary" className="text-xs">
                               {s}
+                            </Badge>
+                          ))}
+                        </div>
+                        <div className="mt-2 flex flex-wrap gap-2">
+                          {Array.from(new Set(neededSkills.map((skill) => getSkillCategory(skill)))).slice(0, 3).map((category) => (
+                            <Badge key={`${u.uid}-needed-cat-${category}`} variant="outline" className={`rounded-full text-[10px] uppercase tracking-wide ${categoryBadgeClasses(category)}`}>
+                              {category}
                             </Badge>
                           ))}
                         </div>
@@ -350,9 +464,19 @@ export default function DiscoverPage() {
                       </div>
                     )}
 
-                    <Button size="sm" className="w-full mt-2">
-                      View Profile
-                    </Button>
+                    <div className="flex gap-2 mt-2">
+                      <Button size="sm" className="flex-1">
+                        View Profile
+                      </Button>
+                      <BookmarkButton
+                        itemId={u.uid}
+                        type="profile"
+                        title={u.displayName}
+                        category={offeredSkills.length > 0 ? offeredSkills[0] : undefined}
+                        compatibilityScore={profile ? calculateCompatibilityScore(profile, u) : undefined}
+                        size="sm"
+                      />
+                    </div>
                   </CardContent>
                 </Card>
               );

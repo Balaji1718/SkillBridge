@@ -70,7 +70,7 @@ export default function AIAssistButton() {
       {!open && (
         <button
           onClick={() => setOpen(true)}
-          className="fixed bottom-6 right-6 z-50 flex h-14 w-14 items-center justify-center rounded-full gradient-accent shadow-lg transition-transform hover:scale-105 active:scale-95"
+          className="fixed bottom-[calc(5.75rem+env(safe-area-inset-bottom))] right-4 z-50 flex h-14 w-14 items-center justify-center rounded-full gradient-accent shadow-lg transition-transform hover:scale-105 active:scale-95 md:bottom-6 md:right-6"
           aria-label="AI Assist"
         >
           <Sparkles className="h-6 w-6 text-accent-foreground" />
@@ -79,7 +79,7 @@ export default function AIAssistButton() {
 
       {/* Panel */}
       {open && (
-        <div className="fixed bottom-6 right-6 z-50 w-[360px] max-h-[520px] rounded-2xl border bg-card shadow-2xl flex flex-col animate-slide-up">
+        <div className="fixed bottom-[calc(5.75rem+env(safe-area-inset-bottom))] right-4 z-50 w-[calc(100vw-2rem)] max-w-[360px] max-h-[520px] rounded-2xl border bg-card shadow-2xl flex flex-col animate-slide-up md:bottom-6 md:right-6">
           {/* Header */}
           <div className="flex items-center justify-between border-b px-4 py-3">
             <div className="flex items-center gap-2">

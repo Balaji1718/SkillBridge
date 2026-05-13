@@ -1,6 +1,6 @@
 import { useState } from "react";
 import { useAuth } from "@/contexts/AuthContext";
-import { collection, addDoc, serverTimestamp } from "firebase/firestore";
+import { collection, addDoc, serverTimestamp, Timestamp } from "firebase/firestore";
 import { db } from "@/lib/firebase";
 import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
 import { Button } from "@/components/ui/button";
@@ -12,6 +12,8 @@ import { useNavigate } from "react-router-dom";
 import SkillAutocomplete from "@/components/SkillAutocomplete";
 import AIEnhanceDialog from "@/components/AIEnhanceDialog";
 import { Sparkles } from "lucide-react";
+import { REQUEST_EXPIRY_DAYS } from "@/lib/requestStatus";
+import { getSkillCategory, categoryBadgeClasses } from "@/lib/skillCategories";
 
 export default function CreateRequestPage() {
   const { user } = useAuth();
@@ -38,6 +40,7 @@ export default function CreateRequestPage() {
         offer_skill: offerSkill.toLowerCase().trim(),
         status: "open",
         createdAt: serverTimestamp(),
+        expiresAt: Timestamp.fromDate(new Date(Date.now() + REQUEST_EXPIRY_DAYS * 24 * 60 * 60 * 1000)),
       });
       toast({ title: "Request created!" });
       navigate("/dashboard");
@@ -84,6 +87,13 @@ export default function CreateRequestPage() {
                   onChange={setNeedSkill}
                   placeholder="e.g. spanish, javascript, spanish..."
                 />
+                {needSkill.trim() && (
+                  <div className="mt-2 flex flex-wrap gap-2">
+                    <Badge variant="outline" className={`rounded-full text-[10px] uppercase tracking-wide ${categoryBadgeClasses(getSkillCategory(needSkill))}`}>
+                      {getSkillCategory(needSkill)}
+                    </Badge>
+                  </div>
+                )}
               </div>
               <div>
                 <Label>Skill I Offer</Label>
@@ -92,6 +102,13 @@ export default function CreateRequestPage() {
                   onChange={setOfferSkill}
                   placeholder="e.g. javascript, piano, french..."
                 />
+                {offerSkill.trim() && (
+                  <div className="mt-2 flex flex-wrap gap-2">
+                    <Badge variant="outline" className={`rounded-full text-[10px] uppercase tracking-wide ${categoryBadgeClasses(getSkillCategory(offerSkill))}`}>
+                      {getSkillCategory(offerSkill)}
+                    </Badge>
+                  </div>
+                )}
               </div>
             </div>
             <Button type="submit" disabled={submitting} className="w-full">

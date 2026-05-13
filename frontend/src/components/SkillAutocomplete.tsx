@@ -1,6 +1,8 @@
 import { useState, useEffect, useRef } from "react";
 import { Input } from "@/components/ui/input";
 import { getSkillSuggestions } from "@/lib/skillSuggestions";
+import { Badge } from "@/components/ui/badge";
+import { getSkillCategory, categoryBadgeClasses } from "@/lib/skillCategories";
 import { cn } from "@/lib/utils";
 import { ChevronDown } from "lucide-react";
 
@@ -164,13 +166,16 @@ export default function SkillAutocomplete({
               role="option"
               aria-selected={index === highlightedIndex}
               className={cn(
-                "px-3 py-2 cursor-pointer text-sm transition-colors",
+                "flex items-center justify-between gap-3 px-3 py-2 cursor-pointer text-sm transition-colors",
                 index === highlightedIndex
                   ? "bg-primary text-primary-foreground"
                   : "hover:bg-accent"
               )}
             >
-              {skill}
+              <span className="min-w-0 truncate">{skill}</span>
+              <Badge variant="outline" className={cn("shrink-0 rounded-full text-[10px] uppercase tracking-wide", categoryBadgeClasses(getSkillCategory(skill)))}>
+                {getSkillCategory(skill)}
+              </Badge>
             </div>
           ))}
         </div>

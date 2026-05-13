@@ -20,6 +20,7 @@ export default function PersonalAnalytics({ profile, compact = false }: Personal
   const [activeMatches, setActiveMatches] = useState(0);
   const [recentActivitySummary, setRecentActivitySummary] = useState("No recent activity yet.");
   const [monthlyTrend, setMonthlyTrend] = useState<number[]>([0, 0, 0, 0, 0, 0]);
+  const [loading, setLoading] = useState(true);
 
   const maxTrendValue = useMemo(() => Math.max(1, ...monthlyTrend), [monthlyTrend]);
 
@@ -54,6 +55,7 @@ export default function PersonalAnalytics({ profile, compact = false }: Personal
         setActiveMatches(parsed.activeMatches || 0);
         setRecentActivitySummary(parsed.recentActivitySummary || "No recent activity yet.");
         setMonthlyTrend(parsed.monthlyTrend?.length === 6 ? parsed.monthlyTrend : [0, 0, 0, 0, 0, 0]);
+        setLoading(false);
         return true;
       } catch {
         return false;
@@ -121,6 +123,7 @@ export default function PersonalAnalytics({ profile, compact = false }: Personal
         setActiveMatches(activeMatchCount);
         setRecentActivitySummary(summary);
         setMonthlyTrend(months);
+        setLoading(false);
 
         try {
           sessionStorage.setItem(
@@ -139,6 +142,7 @@ export default function PersonalAnalytics({ profile, compact = false }: Personal
       } catch {
         if (!mounted) return;
         setRecentActivitySummary("Analytics are temporarily unavailable.");
+        setLoading(false);
       }
     };
 
@@ -160,112 +164,133 @@ export default function PersonalAnalytics({ profile, compact = false }: Personal
           </CardTitle>
         </CardHeader>
         <CardContent className="space-y-4">
-          {/* Profile Completion */}
-          <div className="space-y-2">
-            <div className="flex items-center justify-between">
-              <div className="flex items-center gap-2">
-                <Target className="h-4 w-4 text-muted-foreground" />
-                <span className="text-sm font-medium">Profile Completion</span>
+          {loading ? (
+            // Loading skeleton
+            <div className="space-y-3 animate-pulse">
+              <div className="space-y-2">
+                <div className="flex justify-between items-center">
+                  <div className="h-4 w-32 bg-muted rounded" />
+                  <div className="h-4 w-12 bg-muted rounded" />
+                </div>
+                <div className="h-2 bg-muted rounded" />
               </div>
-              <span className="text-sm font-bold text-primary">{analytics.profileCompletion}%</span>
-            </div>
-            <Progress value={analytics.profileCompletion} className="h-2" />
-          </div>
-
-          {/* Quick Stats */}
-          <div className="grid grid-cols-3 gap-2">
-            <div className="rounded-lg border bg-background/60 p-2 text-center">
-              <div className="text-xl font-bold text-primary">{analytics.totalSkills}</div>
-              <div className="text-[10px] text-muted-foreground uppercase tracking-wide">Skills</div>
-            </div>
-            <div className="rounded-lg border bg-background/60 p-2 text-center">
-              <div className="text-xl font-bold text-accent">{requestsCreated}</div>
-              <div className="text-[10px] text-muted-foreground uppercase tracking-wide">Requests</div>
-            </div>
-            <div className="rounded-lg border bg-background/60 p-2 text-center">
-              <div className="text-xl font-bold text-success">{activeMatches}</div>
-              <div className="text-[10px] text-muted-foreground uppercase tracking-wide">Active</div>
-            </div>
-          </div>
-
-          <div className="rounded-lg border bg-background/60 p-2">
-            <div className="flex items-center gap-1 mb-1">
-              <Activity className="h-3 w-3 text-muted-foreground" />
-              <span className="text-xs text-muted-foreground">Recent Activity</span>
-            </div>
-            <p className="text-xs line-clamp-2">{recentActivitySummary}</p>
-          </div>
-
-          {/* Rating and Account Age */}
-          <div className="grid grid-cols-2 gap-2">
-            <div className="rounded-lg border bg-background/60 p-2">
-              <div className="flex items-center gap-1">
-                <Trophy className="h-3 w-3 text-yellow-500" />
-                <span className="text-xs text-muted-foreground">Rating</span>
+              <div className="grid grid-cols-3 gap-2">
+                {Array.from({ length: 3 }).map((_, i) => (
+                  <div key={i} className="h-16 bg-muted rounded-lg" />
+                ))}
               </div>
-              <div className="text-lg font-bold">{analytics.averageRating.toFixed(1)} ⭐</div>
+              <div className="h-12 bg-muted rounded-lg" />
             </div>
-            <div className="rounded-lg border bg-background/60 p-2">
-              <div className="flex items-center gap-1">
-                <Calendar className="h-3 w-3 text-muted-foreground" />
-                <span className="text-xs text-muted-foreground">Member</span>
+          ) : (
+            <>
+              {/* Profile Completion */}
+              <div className="space-y-2">
+                <div className="flex items-center justify-between">
+                  <div className="flex items-center gap-2">
+                    <Target className="h-4 w-4 text-muted-foreground" />
+                    <span className="text-sm font-medium">Profile Completion</span>
+                  </div>
+                  <span className="text-sm font-bold text-primary">{analytics.profileCompletion}%</span>
+                </div>
+                <Progress value={analytics.profileCompletion} className="h-2" />
               </div>
-              <div className="text-xs font-bold capitalize">{analytics.accountAgeTier}</div>
-            </div>
-          </div>
 
-          {/* Top Skills */}
-          {(analytics.topOfferedSkills.length > 0 || analytics.topNeededSkills.length > 0) && (
-            <div className="space-y-2 pt-2 border-t">
-              {analytics.topOfferedSkills.length > 0 && (
-                <div className="space-y-1">
+              {/* Quick Stats */}
+              <div className="grid grid-cols-3 gap-2">
+                <div className="rounded-lg border bg-background/60 p-2 text-center">
+                  <div className="text-xl font-bold text-primary">{analytics.totalSkills}</div>
+                  <div className="text-[10px] text-muted-foreground uppercase tracking-wide">Skills</div>
+                </div>
+                <div className="rounded-lg border bg-background/60 p-2 text-center">
+                  <div className="text-xl font-bold text-accent">{requestsCreated}</div>
+                  <div className="text-[10px] text-muted-foreground uppercase tracking-wide">Requests</div>
+                </div>
+                <div className="rounded-lg border bg-background/60 p-2 text-center">
+                  <div className="text-xl font-bold text-success">{activeMatches}</div>
+                  <div className="text-[10px] text-muted-foreground uppercase tracking-wide">Active</div>
+                </div>
+              </div>
+
+              <div className="rounded-lg border bg-background/60 p-2">
+                <div className="flex items-center gap-1 mb-1">
+                  <Activity className="h-3 w-3 text-muted-foreground" />
+                  <span className="text-xs text-muted-foreground">Recent Activity</span>
+                </div>
+                <p className="text-xs line-clamp-2">{recentActivitySummary}</p>
+              </div>
+
+              {/* Rating and Account Age */}
+              <div className="grid grid-cols-2 gap-2">
+                <div className="rounded-lg border bg-background/60 p-2">
                   <div className="flex items-center gap-1">
-                    <BookOpen className="h-3 w-3 text-green-500" />
-                    <span className="text-xs font-medium text-muted-foreground">Top Offered</span>
+                    <Trophy className="h-3 w-3 text-yellow-500" />
+                    <span className="text-xs text-muted-foreground">Rating</span>
                   </div>
-                  <div className="flex flex-wrap gap-1">
-                    {analytics.topOfferedSkills.map((skill) => (
-                      <Badge key={skill} variant="outline" className="text-[10px]">
-                        {skill}
-                      </Badge>
-                    ))}
+                  <div className="text-lg font-bold">{analytics.averageRating.toFixed(1)} ⭐</div>
+                </div>
+                <div className="rounded-lg border bg-background/60 p-2">
+                  <div className="flex items-center gap-1">
+                    <Calendar className="h-3 w-3 text-muted-foreground" />
+                    <span className="text-xs text-muted-foreground">Member</span>
                   </div>
+                  <div className="text-xs font-bold capitalize">{analytics.accountAgeTier}</div>
+                </div>
+              </div>
+
+              {/* Top Skills */}
+              {(analytics.topOfferedSkills.length > 0 || analytics.topNeededSkills.length > 0) && (
+                <div className="space-y-2 pt-2 border-t">
+                  {analytics.topOfferedSkills.length > 0 && (
+                    <div className="space-y-1">
+                      <div className="flex items-center gap-1">
+                        <BookOpen className="h-3 w-3 text-green-500" />
+                        <span className="text-xs font-medium text-muted-foreground">Top Offered</span>
+                      </div>
+                      <div className="flex flex-wrap gap-1">
+                        {analytics.topOfferedSkills.map((skill) => (
+                          <Badge key={skill} variant="outline" className="text-[10px]">
+                            {skill}
+                          </Badge>
+                        ))}
+                      </div>
+                    </div>
+                  )}
+                  {analytics.topNeededSkills.length > 0 && (
+                    <div className="space-y-1">
+                      <div className="flex items-center gap-1">
+                        <TrendingUp className="h-3 w-3 text-blue-500" />
+                        <span className="text-xs font-medium text-muted-foreground">Top Needed</span>
+                      </div>
+                      <div className="flex flex-wrap gap-1">
+                        {analytics.topNeededSkills.map((skill) => (
+                          <Badge key={skill} variant="secondary" className="text-[10px]">
+                            {skill}
+                          </Badge>
+                        ))}
+                      </div>
+                    </div>
+                  )}
                 </div>
               )}
-              {analytics.topNeededSkills.length > 0 && (
-                <div className="space-y-1">
-                  <div className="flex items-center gap-1">
-                    <TrendingUp className="h-3 w-3 text-blue-500" />
-                    <span className="text-xs font-medium text-muted-foreground">Top Needed</span>
-                  </div>
-                  <div className="flex flex-wrap gap-1">
-                    {analytics.topNeededSkills.map((skill) => (
-                      <Badge key={skill} variant="secondary" className="text-[10px]">
-                        {skill}
-                      </Badge>
-                    ))}
-                  </div>
+
+              <div className="space-y-2 pt-2 border-t">
+                <div className="flex items-center gap-1">
+                  <TrendingUp className="h-3 w-3 text-muted-foreground" />
+                  <span className="text-xs font-medium text-muted-foreground">6-Month Trend</span>
                 </div>
-              )}
-            </div>
+                <div className="grid grid-cols-6 gap-1 h-12 items-end">
+                  {monthlyTrend.map((value, index) => (
+                    <div
+                      key={`trend-${index}`}
+                      className="rounded-sm bg-primary/70"
+                      style={{ height: `${Math.max(10, Math.round((value / maxTrendValue) * 100))}%` }}
+                      title={`${value} request${value === 1 ? "" : "s"}`}
+                    />
+                  ))}
+                </div>
+              </div>
+            </>
           )}
-
-          <div className="space-y-2 pt-2 border-t">
-            <div className="flex items-center gap-1">
-              <TrendingUp className="h-3 w-3 text-muted-foreground" />
-              <span className="text-xs font-medium text-muted-foreground">6-Month Trend</span>
-            </div>
-            <div className="grid grid-cols-6 gap-1 h-12 items-end">
-              {monthlyTrend.map((value, index) => (
-                <div
-                  key={`trend-${index}`}
-                  className="rounded-sm bg-primary/70"
-                  style={{ height: `${Math.max(10, Math.round((value / maxTrendValue) * 100))}%` }}
-                  title={`${value} request${value === 1 ? "" : "s"}`}
-                />
-              ))}
-            </div>
-          </div>
         </CardContent>
       </Card>
     );

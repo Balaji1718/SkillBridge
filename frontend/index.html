@@ -17,6 +17,28 @@
     <meta name="twitter:card" content="summary_large_image" />
     <meta name="twitter:site" content="@SkillBridge" />
     <meta name="twitter:image" content="/placeholder.svg" />
+    <script>
+      (function () {
+        try {
+          var storageKey = "skillbridge-theme";
+          var stored = localStorage.getItem(storageKey);
+          var prefersDark = window.matchMedia && window.matchMedia("(prefers-color-scheme: dark)").matches;
+          var isDark = stored === "dark" || (stored !== "light" && prefersDark);
+          document.documentElement.classList.toggle("dark", isDark);
+          document.documentElement.style.colorScheme = isDark ? "dark" : "light";
+
+          var themeColor = document.querySelector('meta[name="theme-color"]');
+          if (!themeColor) {
+            themeColor = document.createElement("meta");
+            themeColor.setAttribute("name", "theme-color");
+            document.head.appendChild(themeColor);
+          }
+          themeColor.setAttribute("content", isDark ? "#111827" : "#f8fafc");
+        } catch (error) {
+          // Ignore theme boot errors and fall back to CSS defaults.
+        }
+      })();
+    </script>
   </head>
 
   <body>

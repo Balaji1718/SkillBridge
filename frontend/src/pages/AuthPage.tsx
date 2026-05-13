@@ -6,6 +6,7 @@ import { Label } from "@/components/ui/label";
 import { Card, CardContent, CardDescription, CardHeader, CardTitle } from "@/components/ui/card";
 import { Repeat2 } from "lucide-react";
 import { useToast } from "@/hooks/use-toast";
+import ThemeToggle from "@/components/ThemeToggle";
 
 export default function AuthPage() {
   const [isLogin, setIsLogin] = useState(true);
@@ -36,7 +37,10 @@ export default function AuthPage() {
   };
 
   return (
-    <div className="min-h-screen flex items-center justify-center bg-background p-4">
+    <div className="min-h-screen flex items-center justify-center bg-background p-4 transition-colors duration-300">
+      <div className="absolute right-4 top-4 sm:right-6 sm:top-6">
+        <ThemeToggle showText />
+      </div>
       <div className="w-full max-w-md animate-fade-in">
         <div className="flex items-center justify-center gap-2 mb-8">
           <Repeat2 className="h-8 w-8 text-primary" />

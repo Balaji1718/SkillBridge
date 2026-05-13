@@ -5,6 +5,15 @@
 @tailwind utilities;
 
 @layer base {
+  html {
+    background: hsl(var(--background));
+    color-scheme: light;
+  }
+
+  .dark {
+    color-scheme: dark;
+  }
+
   :root {
     --background: 210 20% 98%;
     --foreground: 220 20% 10%;
@@ -85,7 +94,7 @@
     @apply border-border;
   }
   body {
-    @apply bg-background text-foreground font-sans;
+    @apply bg-background text-foreground font-sans transition-colors duration-300;
   }
   h1, h2, h3, h4 {
     font-family: 'Space Grotesk', sans-serif;

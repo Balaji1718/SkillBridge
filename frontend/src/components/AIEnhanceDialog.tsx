@@ -5,6 +5,7 @@ import { Button } from "@/components/ui/button";
 import { Textarea } from "@/components/ui/textarea";
 import { Badge } from "@/components/ui/badge";
 import { useToast } from "@/hooks/use-toast";
+import { useNotificationTriggers } from "@/hooks/useNotificationTriggers";
 import { sendGroqChat } from "@/lib/groq";
 import { cn } from "@/lib/utils";
 
@@ -15,6 +16,7 @@ interface AIEnhanceDialogProps {
   onOpenChange: (open: boolean) => void;
   mode: AIEnhanceMode;
   sourceText: string;
+  starterText?: string;
   title: string;
   description: string;
   onApply: (value: string) => void;
@@ -113,6 +115,7 @@ export default function AIEnhanceDialog({
   onOpenChange,
   mode,
   sourceText,
+  starterText,
   title,
   description,
   onApply,
@@ -121,6 +124,7 @@ export default function AIEnhanceDialog({
   className,
 }: AIEnhanceDialogProps) {
   const { toast } = useToast();
+  const { notifyAIEnhancementCompleted } = useNotificationTriggers();
   const [draft, setDraft] = useState(sourceText);
   const [suggestion, setSuggestion] = useState("");
   const [loading, setLoading] = useState(false);
@@ -129,16 +133,16 @@ export default function AIEnhanceDialog({
 
   useEffect(() => {
     if (open) {
-      setDraft(sourceText);
+      setDraft(sourceText.trim() || starterText?.trim() || "");
       setSuggestion("");
       setError(null);
     }
-  }, [open, sourceText]);
+  }, [open, sourceText, starterText]);
 
   const cacheKey = useMemo(() => `${mode}:${draft.trim()}`, [mode, draft]);
 
   const generateSuggestion = async (force = false) => {
-    const promptSource = draft.trim();
+    const promptSource = draft.trim() || starterText?.trim() || "";
 
     if (!promptSource) {
       setError("Add a short draft first so AI can improve it.");
@@ -227,6 +231,7 @@ export default function AIEnhanceDialog({
 
     onApply(suggestion.trim());
     onOpenChange(false);
+    notifyAIEnhancementCompleted(mode);
     toast({ title: "Suggestion applied", description: "Review it before saving or submitting." });
   };
 
@@ -296,8 +301,8 @@ export default function AIEnhanceDialog({
             <Copy className="mr-2 h-4 w-4" />
             Copy
           </Button>
-          <Button type="button" variant="outline" onClick={() => generateSuggestion(true)} disabled={loading}>
-            <RefreshCw className={cn("mr-2 h-4 w-4", loading && "animate-spin")} />
+          <Button type="button" variant="outline" onClick={() => generateSuggestion(true)} loading={loading}>
+            <RefreshCw className="mr-2 h-4 w-4" />
             Regenerate
           </Button>
           <Button type="button" onClick={applySuggestion} disabled={!hasSuggestion || loading}>
@@ -307,7 +312,7 @@ export default function AIEnhanceDialog({
         </DialogFooter>
 
         <div className="flex justify-start">
-          <Button type="button" variant="ghost" size="sm" onClick={() => generateSuggestion()} disabled={loading}>
+          <Button type="button" variant="ghost" size="sm" onClick={() => generateSuggestion()} loading={loading}>
             <Sparkles className="mr-2 h-4 w-4" />
             Generate suggestion
           </Button>
