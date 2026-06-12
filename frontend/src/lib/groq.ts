@@ -11,43 +11,38 @@ interface GroqChatOptions {
   signal?: AbortSignal;
 }
 
-const GROQ_API_URL = "https://api.groq.com/openai/v1/chat/completions";
-const DEFAULT_MODEL = "llama-3.1-8b-instant";
+const apiBase = import.meta.env.VITE_API_URL || "http://localhost:3001";
+const GROQ_API_URL = `${apiBase}/api/groq`;
 
 export async function sendGroqChat(messages: GroqMessage[], options: GroqChatOptions = {}) {
-  const apiKey = import.meta.env.VITE_GROQ_API_KEY?.trim();
-
-  if (!apiKey) {
-    throw new Error("Groq API key is not configured.");
-  }
-
   const response = await fetch(GROQ_API_URL, {
     method: "POST",
     signal: options.signal,
     headers: {
       "Content-Type": "application/json",
-      Authorization: `Bearer ${apiKey}`,
     },
     body: JSON.stringify({
-      model: options.model ?? DEFAULT_MODEL,
       messages,
-      temperature: options.temperature ?? 0.4,
+      options: {
+        model: options.model,
+        temperature: options.temperature,
+      },
     }),
   });
 
   if (!response.ok) {
     const errorText = await response.text().catch(() => "");
-    throw new Error(errorText || `Groq request failed with status ${response.status}.`);
+    throw new Error(errorText || `AI request failed with status ${response.status}.`);
   }
 
   const data = (await response.json()) as {
-    choices?: Array<{ message?: { content?: string } }>;
+    content?: string;
   };
 
-  const content = data.choices?.[0]?.message?.content?.trim();
+  const content = data.content?.trim();
 
   if (!content) {
-    throw new Error("Groq returned an empty response.");
+    throw new Error("AI service returned an empty response.");
   }
 
   return content;
