@@ -11,11 +11,12 @@ import { Input } from "@/components/ui/input";
 import { Label } from "@/components/ui/label";
 import { useToast } from "@/hooks/use-toast";
 import { calculateCompatibilityScore, calculateProfileCompletion, normalizeSkill, partialMatch } from "@/lib/utils";
-import { Repeat2, Search, X } from "lucide-react";
+import { Repeat2, Search, X, Mail, MessageSquare } from "lucide-react";
 import RecommendedUsers from "@/components/RecommendedUsers";
 import ReportModal from "@/components/ReportModal";
 import BookmarkButton from "@/components/BookmarkButton";
 import SuggestionModal from "@/components/SuggestionModal";
+import ChatDialog from "@/components/ChatDialog";
 import { ListSkeleton, MatchCardSkeleton } from "@/components/LoadingSkeletons";
 import { useDelayedLoading } from "@/hooks/useDelayedLoading";
 import { useDebounce } from "@/hooks/useDebounce";
@@ -75,6 +76,11 @@ export default function MatchesPage() {
   const navigate = useNavigate();
   const [myRequests, setMyRequests] = useState<SkillRequest[]>([]);
   const [matches, setMatches] = useState<Match[]>([]);
+  const [activeMatches, setActiveMatches] = useState<Match[]>([]);
+  const [activeMatchesLoading, setActiveMatchesLoading] = useState(true);
+  const [chatOpen, setChatOpen] = useState(false);
+  const [selectedMatch, setSelectedMatch] = useState<Match | null>(null);
+
   const [searching, setSearching] = useState(false);
   const [loading, setLoading] = useState(true);
   const [hasSearched, setHasSearched] = useState(false);
@@ -87,6 +93,7 @@ export default function MatchesPage() {
 
   useEffect(() => {
     loadMyRequests();
+    loadActiveMatches();
   }, [user]);
 
   const loadMyRequests = async () => {
@@ -121,6 +128,67 @@ export default function MatchesPage() {
       console.error(err);
     }
     setLoading(false);
+  };
+
+  const loadActiveMatches = async () => {
+    if (!user) return;
+    setActiveMatchesLoading(true);
+    try {
+      const [userASnap, userBSnap] = await Promise.all([
+        getDocs(query(collection(db, "matches"), where("userA", "==", user.uid), where("status", "==", "accepted"))),
+        getDocs(query(collection(db, "matches"), where("userB", "==", user.uid), where("status", "==", "accepted"))),
+      ]);
+
+      const mergedRecords = new Map<string, any>();
+      [...userASnap.docs, ...userBSnap.docs].forEach((matchDoc) => {
+        mergedRecords.set(matchDoc.id, { id: matchDoc.id, ...matchDoc.data() });
+      });
+
+      const orderedRecords = Array.from(mergedRecords.values());
+
+      const partnerIds = Array.from(
+        new Set(
+          orderedRecords
+            .map((record) => (record.userA === user.uid ? record.userB : record.userA))
+            .filter(Boolean)
+        )
+      ) as string[];
+
+      const partnerProfileMap = new Map<string, any>();
+      await Promise.all(
+        partnerIds.map(async (partnerId) => {
+          const partnerSnap = await getDoc(doc(db, "users", partnerId));
+          if (partnerSnap.exists()) {
+            partnerProfileMap.set(partnerId, partnerSnap.data());
+          }
+        })
+      );
+
+      const matchesWithPartners = orderedRecords.map((record) => {
+        const partnerId = record.userA === user.uid ? record.userB : record.userA;
+        const partnerProfile = partnerProfileMap.get(partnerId);
+        return {
+          ...record,
+          matchedUser: {
+            uid: partnerId,
+            displayName: partnerId === record.userA ? record.userAName : record.userBName,
+            email: partnerProfile?.email || "",
+            bio: partnerProfile?.bio || "",
+            skills_offered: partnerProfile?.skills_offered || [],
+            skills_needed: partnerProfile?.skills_needed || [],
+            rating: partnerProfile?.rating || 0,
+            exchanges_completed: partnerProfile?.exchanges_completed || 0,
+            availability_preferences: partnerProfile?.availability_preferences || [],
+          },
+        };
+      });
+
+      setActiveMatches(matchesWithPartners as unknown as Match[]);
+    } catch (err) {
+      console.error("Error loading active matches:", err);
+    } finally {
+      setActiveMatchesLoading(false);
+    }
   };
 
   const updateRequestStatus = async (requestId: string, nextStatus: "archived" | "completed") => {
@@ -361,6 +429,7 @@ export default function MatchesPage() {
       });
       toast({ title: "Match accepted! 🎉", description: "You can now coordinate your skill exchange." });
       setMatches((prev) => prev.filter((m) => m.id !== match.id));
+      loadActiveMatches();
     } catch (err: any) {
       toast({ title: "Error", description: err.message, variant: "destructive" });
     }
@@ -561,6 +630,66 @@ export default function MatchesPage() {
         )}
       </div>
 
+      {/* Active Collaborations */}
+      <div>
+        <h2 className="font-heading text-lg font-semibold mb-3">Active Collaborations</h2>
+        {activeMatchesLoading ? (
+          <ListSkeleton count={1} />
+        ) : activeMatches.length === 0 ? (
+          <Card className="border-dashed border-primary/20 bg-primary/5">
+            <CardContent className="py-6 text-center text-muted-foreground text-sm">
+              No active collaborations yet. Find a match and click "Accept Match" to start chatting and sharing skills!
+            </CardContent>
+          </Card>
+        ) : (
+          <div className="space-y-3">
+            {activeMatches.map((m) => {
+              const partner = m.matchedUser;
+              const offeredSkill = m.requestA.userId === user?.uid ? m.requestA.offer_skill : m.requestB.offer_skill;
+              const neededSkill = m.requestA.userId === user?.uid ? m.requestA.need_skill : m.requestB.need_skill;
+
+              return (
+                <Card key={m.id} className="border-emerald-500/20 bg-emerald-500/5">
+                  <CardContent className="py-4 space-y-3">
+                    <div className="flex flex-col sm:flex-row sm:items-start sm:justify-between gap-3">
+                      <div className="space-y-1.5 min-w-0">
+                        <div className="flex items-center gap-2 flex-wrap">
+                          <p className="font-semibold text-base">{partner.displayName}</p>
+                          <Badge variant="secondary">{partner.rating.toFixed(1)} ⭐</Badge>
+                        </div>
+                        {partner.email && (
+                          <p className="text-xs text-muted-foreground flex items-center gap-1">
+                            <Mail className="h-3.5 w-3.5" />
+                            {partner.email}
+                          </p>
+                        )}
+                        <div className="flex flex-wrap gap-2 pt-0.5">
+                          <Badge variant="outline">You teach: {offeredSkill}</Badge>
+                          <Badge variant="outline">You learn: {neededSkill}</Badge>
+                        </div>
+                      </div>
+                      <div className="flex gap-2 shrink-0 self-end sm:self-start">
+                        <Button
+                          size="sm"
+                          className="gap-1.5"
+                          onClick={() => {
+                            setSelectedMatch(m);
+                            setChatOpen(true);
+                          }}
+                        >
+                          <MessageSquare className="h-4 w-4" />
+                          Chat
+                        </Button>
+                      </div>
+                    </div>
+                  </CardContent>
+                </Card>
+              );
+            })}
+          </div>
+        )}
+      </div>
+
       {/* Found matches */}
       <div>
         <div className="flex items-center justify-between mb-3">
@@ -679,6 +808,17 @@ export default function MatchesPage() {
           </div>
         )}
       </div>
+      {selectedMatch && user && profile && (
+        <ChatDialog
+          open={chatOpen}
+          onOpenChange={setChatOpen}
+          matchId={selectedMatch.id}
+          partnerName={selectedMatch.matchedUser.displayName}
+          partnerEmail={selectedMatch.matchedUser.email}
+          currentUserId={user.uid}
+          currentUserName={profile.displayName || "User"}
+        />
+      )}
     </div>
   );
 }
