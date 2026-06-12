@@ -2,6 +2,7 @@ import { useState } from "react";
 import { useAuth, SkillWithLevel, SkillLevel } from "@/contexts/AuthContext";
 import { deleteField, doc, updateDoc } from "firebase/firestore";
 import { db } from "@/lib/firebase";
+import { updateProfile } from "firebase/auth";
 import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
 import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
@@ -41,6 +42,7 @@ export default function ProfilePage() {
   const { profile, user, refreshProfile } = useAuth();
   const { toast } = useToast();
 
+  const [displayName, setDisplayName] = useState(profile?.displayName || "");
   const [bio, setBio] = useState(profile?.bio || "");
   const [skillInput, setSkillInput] = useState("");
   const [skillLevel, setSkillLevel] = useState<SkillLevel>("beginner");
@@ -155,13 +157,21 @@ export default function ProfilePage() {
 
   const save = async () => {
     if (!user) return;
+    if (!displayName.trim()) {
+      toast({ title: "Error", description: "Name cannot be empty.", variant: "destructive" });
+      return;
+    }
     setSaving(true);
     try {
+      // Keep Firebase Auth in sync
+      await updateProfile(user, { displayName: displayName.trim() });
+
       // Also create legacy format for backward compatibility
       const legacyOffered = offered.map((s) => s.skill);
       const legacyNeeded = needed.map((s) => s.skill);
 
       await updateDoc(doc(db, "users", user.uid), {
+        displayName: displayName.trim(),
         bio,
         skills_offered: legacyOffered,
         skills_needed: legacyNeeded,
@@ -247,8 +257,13 @@ export default function ProfilePage() {
         </CardHeader>
         <CardContent className="space-y-4">
           <div>
-            <Label>Name</Label>
-            <Input value={profile?.displayName || ""} disabled className="bg-muted" />
+            <Label htmlFor="displayName">Name</Label>
+            <Input
+              id="displayName"
+              value={displayName}
+              onChange={(e) => setDisplayName(e.target.value)}
+              placeholder="Your Name"
+            />
           </div>
           <div>
             <Label>Bio</Label>
