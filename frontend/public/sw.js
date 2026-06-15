@@ -8,6 +8,7 @@ const ASSETS = [
 ];
 
 self.addEventListener("install", (e) => {
+  self.skipWaiting(); // Force the new service worker to become active immediately
   e.waitUntil(
     caches.open(CACHE_NAME).then((cache) => {
       return cache.addAll(ASSETS);
@@ -27,6 +28,7 @@ self.addEventListener("activate", (e) => {
       );
     })
   );
+  self.clients.claim(); // Force the active service worker to take control of all open pages immediately
 });
 
 self.addEventListener("fetch", (e) => {
