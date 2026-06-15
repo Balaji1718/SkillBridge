@@ -1,7 +1,5 @@
-const CACHE_NAME = "skillbridge-cache-v1";
+const CACHE_NAME = "skillbridge-cache-v2";
 const ASSETS = [
-  "/",
-  "/index.html",
   "/manifest.json",
   "/favicon.png",
   "/icon-192.png",
