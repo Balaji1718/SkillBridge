@@ -44,6 +44,7 @@ interface SkillRequest {
 interface UserProfile {
   uid: string;
   displayName: string;
+  email?: string;
   bio: string;
   skills_offered?: string[];
   skills_offered_with_levels?: Array<{ skill: string; level: string }>;

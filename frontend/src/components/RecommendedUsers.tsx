@@ -110,7 +110,7 @@ export default function RecommendedUsers({ limit = 6 }: { limit?: number }) {
         for (const candidate of arr.slice(0, limit)) {
           try {
             const userSnap = await getDoc(doc(db, "users", candidate.userId));
-            const userProfile = { uid: candidate.userId, displayName: candidate.userName || userSnap.data()?.displayName || "User", rating: userSnap.data()?.rating || 0, availability_preferences: userSnap.data()?.availability_preferences || [], ...(userSnap.data() || {}) };
+            const userProfile: any = { uid: candidate.userId, displayName: candidate.userName || userSnap.data()?.displayName || "User", rating: userSnap.data()?.rating || 0, availability_preferences: userSnap.data()?.availability_preferences || [], ...(userSnap.data() || {}) };
 
             // Skip if profile is private
             if (!isProfilePublic(userProfile)) {
@@ -118,7 +118,7 @@ export default function RecommendedUsers({ limit = 6 }: { limit?: number }) {
             }
 
             const compatibility = calculateCompatibilityScore(profile as any, userProfile as any);
-            const categoryOverlap = [...candidate.offeredCategories].filter((cat) => myNeedCategories.includes(cat)).length + [...candidate.neededCategories].filter((cat) => myOfferCategories.includes(cat)).length;
+            const categoryOverlap = [...candidate.offeredCategories].filter((cat) => myNeedCategories.includes(cat as any)).length + [...candidate.neededCategories].filter((cat) => myOfferCategories.includes(cat as any)).length;
 
             results.push({
               id: candidate.userId,

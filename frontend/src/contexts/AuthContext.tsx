@@ -30,6 +30,7 @@ interface UserProfile {
   avatar?: string;
   rating: number;
   exchanges_completed: number;
+  email_notifications?: boolean;
 }
 
 interface AuthContextType {
