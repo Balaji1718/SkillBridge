@@ -204,8 +204,8 @@ export default function MatchesPage() {
       if (nextStatus === "completed" && user) {
         const matchDocs = new Map<string, { id: string }>();
         const [userAMatches, userBMatches] = await Promise.all([
-          getDocs(query(collection(db, "matches"), where("requestA", "==", requestId))),
-          getDocs(query(collection(db, "matches"), where("requestB", "==", requestId))),
+          getDocs(query(collection(db, "matches"), where("requestA", "==", requestId), where("userA", "==", user.uid))),
+          getDocs(query(collection(db, "matches"), where("requestB", "==", requestId), where("userB", "==", user.uid))),
         ]);
 
         [...userAMatches.docs, ...userBMatches.docs].forEach((matchDoc) => {
